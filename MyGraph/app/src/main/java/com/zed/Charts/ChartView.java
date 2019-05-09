@@ -1,68 +1,163 @@
 package com.zed.Charts;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.GridLayout;
+import android.widget.GridView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.TextView;
+
+import com.zed.Others.ButtonsView;
+import com.zed.Others.CheckButton;
+import com.zed.Others.CheckButtonsAdapter;
+
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class ChartView extends LinearLayout {
     private Chart g;
 
-    private MiniChart mg;
+    public MiniChart mg;
 
+    private LinearLayout text;
+    public TextView title, edge;
+
+    public Activity parent;
+    public ButtonsView v;
+
+    public ImageView im;
     private CheckButton[] btns;
+    DateFormat df = new SimpleDateFormat("MMMM dd yyyy", Locale.US);
 
-    public ChartView(Context context) {
+    public ChartView(Context context, Activity par) {
         super(context);
         this.setOrientation(VERTICAL);
 
-        LinearLayout.LayoutParams lp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 250, getResources().getDisplayMetrics()),0);
+        df.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        parent = par;
+        LinearLayout.LayoutParams lp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.gravity = Gravity.CENTER_HORIZONTAL;
-        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()));
-        g = new Chart(this.getContext());
+        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 0, getResources().getDisplayMetrics()));
+
+        text = new LinearLayout(context);
+        text.setLayoutParams(lp);
+
+        lp = new LayoutParams((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()),0);
+        lp.gravity = Gravity.CENTER;
+
+        im = new ImageView(context);
+        im.setImageDrawable(getResources().getDrawable(R.drawable.zoomout));
+        im.setVisibility(GONE);
+
+        im.setLayoutParams(lp);
+        im.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        text.addView(im);
+
+        lp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        lp.gravity = Gravity.CENTER;
+
+        title = new TextView(context);
+        title.setGravity(Gravity.LEFT);
+        title.setText("Null");
+        title.setTextColor(Color.BLACK);
+        title.setTextSize(16);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setLayoutParams(lp);
+        text.addView(title);
+
+        edge = new TextView(context);
+        edge.setGravity(Gravity.RIGHT);
+        edge.setText("Null");
+        edge.setTextColor(Color.BLACK);
+        edge.setTextSize(10);
+        edge.setTypeface(Typeface.DEFAULT_BOLD);
+        edge.setLayoutParams(lp);
+        text.addView(edge);
+
+        this.addView(text);
+
+        lp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 250, getResources().getDisplayMetrics()), 0);
+        lp.gravity = Gravity.CENTER_HORIZONTAL;
+        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()));
+        g = new Chart(this.getContext(),this);
         g.setLayoutParams(lp);
-        g.setPadding((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()));
+        g.setPadding((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()));
         this.addView(g);
 
-        lp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 50, getResources().getDisplayMetrics()),0);
+        lp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 50, getResources().getDisplayMetrics()), 0);
         lp.gravity = Gravity.CENTER_HORIZONTAL;
-        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()));
-        mg = new MiniChart(this.getContext());
+        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()));
+        mg = new MiniChart(this.getContext(),this);
         mg.setLayoutParams(lp);
-        mg.setPadding((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics()));
+        mg.setPadding((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics()));
 
         mg.setOnMiniGraphChange(new OnMiniGraphChanges() {
             @Override
-            public void Check() {
-                g.setScale(mg.getSelect());
-                g.setStart(mg.getStart());
-                g.istouch = false;
-               if((g.getMax() > g.newgraph_h || g.getMax() < g.newgraph_h - g.stepvalue)) {
-                    g.update();
+            public void Check(int i) {
+                if (i == 0) {
+                    g.setScale(mg.getSelect());
+                    g.setStart(mg.getStart());
+                    edge.setText(String.valueOf(df.format(g.points[0].points[g.getStartPoint()].x + 2) + " - " + df.format(g.points[0].points[g.getEndPoint() - 2].x)));
+                    g.istouch = false;
                     g.checknums();
-               } else {
-                   g.checknums();
-                   g.invalidate();
-               }
+                    g.invalidate();
+                } else if(i == 1) {
+                    if ((g.getMax() > g.newgraph_h || g.getMax() < g.newgraph_h - g.stepvalue) || (g.getMin() < g.newgraph_b || g.getMin() > g.newgraph_b + g.stepvalue)) {
+                        g.update();
+                        g.checknums();
+                        g.invalidate();
+                    } else {
+                        g.checknums();
+                        g.invalidate();
+                    }
+                }
             }
         });
 
+
+        lp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1000);
+        //lp.gravity = Gravity.CENTER_HORIZONTAL;
+        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()));
+
         this.addView(mg);
 
-        this.setBackgroundColor(g.bgcolor);
+        //this.addView(ll);
 
-        setFocusable(true);
+        this.setBackgroundColor(MainActivity.bgc);
     }
 
-    public void setData(JSONObject json){
+    public void setData(JSONObject json) {
         try {
             g.setData(json);
+
+            g.isshow = new boolean[g.points.length];
+            for (int i = 0; i < g.isshow.length; i++) {
+                g.isshow[i] = true;
+            }
+            g.update();
+
             mg.setData(json);
+            mg.isshow = new boolean[mg.points.length];
+            for (int i = 0; i < mg.isshow.length; i++) {
+                mg.isshow[i] = true;
+            }
+            mg.update();
+
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -78,60 +173,69 @@ public class ChartView extends LinearLayout {
             e.printStackTrace();
         }
 
-        LinearLayout.LayoutParams lp = new LayoutParams((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 60, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 25, getResources().getDisplayMetrics()),0);
-        lp.gravity = Gravity.CENTER_VERTICAL;
-        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()),(int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()));
+        LinearLayout.LayoutParams lp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 25, getResources().getDisplayMetrics()));
+        lp.gravity = Gravity.CENTER;
+        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()));
 
 
-        for(int i = 0; i < g.getLinesCount(); i++){
+        for (int i = 0; i < g.getLinesCount(); i++) {
             final int ii = i;
-            btns[i] = new CheckButton(this.getContext());
-            btns[i].setLayoutParams(lp);
-            btns[i].setColor(g.getPaint(i).getColor());
             try {
-                btns[i].setText(json.getJSONObject("names").getString("y" + i));
+                lp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 25, getResources().getDisplayMetrics()));
+                lp.gravity = Gravity.CENTER;
+                lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, getResources().getDisplayMetrics()));
+
+                btns[i] = new CheckButton(this.getContext(), json.getJSONObject("names").getString("y" + i));
+                btns[i].setLayoutParams(lp);
+                btns[i].setColor(g.getPaint(i).getColor());
+                btns[i].setOnCheckListener(new CheckButton.OnCheckListener() {
+                    @Override
+                    public void onCheck(CheckButton v) {
+                        g.istouch = false;
+                        g.setLineVisible(ii, v.ischeck);
+                        mg.setLineVisible(ii, v.ischeck);
+                        g.update();
+                        mg.update();
+                    }
+                });
+                btns[i].textcolor = Color.WHITE;
+
+                btns[i].ischeck = true;
+
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-
-            btns[i].setOnCheckListener(new CheckButton.OnCheckListener() {
-                @Override
-                public void onCheck(CheckButton v) {
-                    g.setLineVisible(ii,v.ischeck);
-                    mg.setLineVisible(ii,v.ischeck);
-                    g.update();
-                    mg.update();
-                }
-            });
-            btns[i].textcolor = Color.BLACK;
-
-            btns[i].ischeck = true;
-            this.addView(btns[i]);
         }
+
+
+//        CheckButtonsAdapter btnslist = new CheckButtonsAdapter(this.getContext(),btns);
+//        ll.setColumnWidth(max);
+//        ll.setAdapter(btnslist);
+
+        lp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.gravity = Gravity.CENTER;
+        lp.setMargins((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics()));
+
+        v = new ButtonsView(this.getContext(), btns);
+        v.setLayoutParams(lp);
+        this.addView(v);
+
+        edge.setText(String.valueOf(df.format(g.points[0].points[0].x) + " - " + df.format(g.points[0].points[g.points[0].points.length - 1].x)));
     }
 
-    protected void setTheme(int bgc, int lnc, int txtc,int btntxtc,int i) {
-        g.setTheme(bgc,lnc,txtc);
-        mg.setTheme(bgc,lnc,txtc);
-        this.setBackgroundColor(bgc);
-            for (int n = 0; n < btns.length; n++) {
-                btns[n].textcolor = btntxtc;
-                btns[n].invalidate();
-            }
+    protected void setTheme() {
+        g.setTheme();
+        mg.setTheme();
+        this.setBackgroundColor(MainActivity.bgc);
+        if(g.chartmode == 0)
+        this.title.setTextColor(MainActivity.textcolor);
+        else
+            this.title.setTextColor(MainActivity.zoomtext);
+
+        this.edge.setTextColor(MainActivity.textcolor);
     }
 
-    public Chart getGraph(){
-        return  g;
-    }
-
-    @Override
-    public boolean onInterceptTouchEvent(MotionEvent ev) {
-        if(ev.getAction() == MotionEvent.ACTION_OUTSIDE || ev.getAction() == MotionEvent.ACTION_DOWN){
-            g.istouch = false;
-            mg.onTouchEvent(ev);
-            g.onTouchEvent(ev);
-            g.invalidate();
-        }
-        return false;
+    public Chart getGraph() {
+        return g;
     }
 }

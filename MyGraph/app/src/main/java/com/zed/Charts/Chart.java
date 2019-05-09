@@ -9,7 +9,7 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
-import android.util.Log;
+import android.graphics.drawable.Drawable;
 import android.util.TypedValue;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -19,10 +19,15 @@ import android.view.animation.AccelerateInterpolator;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.TimeZone;
 
 public class Chart extends View {
 
@@ -38,13 +43,14 @@ public class Chart extends View {
 
     protected class LineInfo {
         Paint pnt, pnt2;
-        boolean isshow;
+        String name;
+        int num;
         PointInfo[] points;
         ValueAnimator alphaanim;
 
-        public LineInfo(PointInfo[] pnts, int cl) {
-            isshow = true;
+        public LineInfo(PointInfo[] pnts, int cl, int i) {
             pnt = new Paint();
+            num = i;
             pnt.setStrokeWidth(linesize);
             pnt.setColor(cl);
             pnt.setStyle(Paint.Style.STROKE);
@@ -58,7 +64,7 @@ public class Chart extends View {
         public void startanim() {
             alphaanim = new ValueAnimator();
             alphaanim.setDuration(250);
-            if (isshow) alphaanim.setIntValues(pnt.getAlpha(), 255);
+            if (isshow[num]) alphaanim.setIntValues(pnt.getAlpha(), 255);
             else alphaanim.setIntValues(pnt.getAlpha(), 0);
             alphaanim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
@@ -78,45 +84,57 @@ public class Chart extends View {
 
     protected byte step_num;
 
-    protected float width, height, right, left, top, bottom;
+    protected float width, height, right, left, top, bottom,menux,menuy,menuh,menuw;
 
-    protected float graph_h, newgraph_h;
+    protected float graph_h, newgraph_h,graph_b,newgraph_b;
 
     protected float startx;
 
-    protected int linesize;
+    protected int linesize,chartmode;
 
-    private float distance, scale, inforad, linesz, lastx, lasty;
+    public ChartView parent;
+
+    public float distance, scale, inforad, linesz, lastx, lasty;
 
     protected int infox, stepvalue, oldsstepvalue, stepalpha, stepdate;
 
-    protected boolean drawgrid, istouch, ismove = false, waslongtouch = false;
-
-    protected int bgcolor, linecolor, textcolor;
+    protected boolean drawgrid, istouch, ismove = false, ischacge;
 
     private float midwidth = 0;
     float[] dots;
     float[] linedots;
     float[] pointdots;
 
-    DateFormat df = new SimpleDateFormat("MMM dd", Locale.US), df2 = new SimpleDateFormat("MMM dd yyyy", Locale.US);
+    boolean[] isshow;
+    DateFormat df = new SimpleDateFormat("MMM dd", Locale.US), df2 = new SimpleDateFormat("MMMM dd yyyy", Locale.US),df3 = new SimpleDateFormat("HH:mm",Locale.US), df4 = new SimpleDateFormat("MMM dd HH:mm", Locale.US);
     Paint text = new Paint();
     Paint popuppnt = new Paint();
     Date d;
 
-    ValueAnimator infoanim, resizeanim, gridanim, numanim;
+    ValueAnimator infoanim, resizeanim, gridanim, numanim,resizeanim2;
     Paint infopaint = new Paint(), p = new Paint(), bg = new Paint();
 
     @SuppressLint("ClickableViewAccessibility")
-    public Chart(Context context) {
+    public Chart(Context context,ChartView par) {
         super(context);
         step_num = 5;
 
+        df2.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        df3.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        df.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        df4.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        parent = par;
         dots = new float[(step_num) * 4];
 
         linesize = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2f, getResources().getDisplayMetrics());
 
         scale = 1;
+
+        chartmode = 0;
 
         startx = 0;
 
@@ -128,7 +146,7 @@ public class Chart extends View {
         text.setStyle(Paint.Style.STROKE);
         text.setAntiAlias(true);
         text.setTypeface(Typeface.DEFAULT_BOLD);
-        text.setColor(textcolor);
+        text.setColor(MainActivity.gridcolor);
 
         popuppnt.setTextSize((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10, getResources().getDisplayMetrics()));
         popuppnt.setAntiAlias(true);
@@ -143,7 +161,7 @@ public class Chart extends View {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 linesz = (float) animation.getAnimatedValue();
-                inforad = (float) animation.getAnimatedValue() * (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4f, getResources().getDisplayMetrics());
+                inforad = (float) animation.getAnimatedValue() * (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3f, getResources().getDisplayMetrics());
                 invalidate();
             }
         });
@@ -154,6 +172,16 @@ public class Chart extends View {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 graph_h = (float) animation.getAnimatedValue();
+                invalidate();
+            }
+        });
+
+        resizeanim2 = new ValueAnimator();
+        resizeanim2.setDuration(250);
+        resizeanim2.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                graph_b = (float) animation.getAnimatedValue();
                 invalidate();
             }
         });
@@ -184,66 +212,166 @@ public class Chart extends View {
             }
         });
 
-        setFocusable(true);
-        setOnFocusChangeListener(new OnFocusChangeListener() {
-            @Override
-            public void onFocusChange(View v, boolean hasFocus) {
-                istouch = hasFocus;
-                invalidate();
-            }
-        });
+
 
         this.setOnTouchListener(new OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if(event.getAction() == MotionEvent.ACTION_DOWN){
-                    int dis = (int) (event.getX() - startx);
-                    infox = (int) (dis / (distance / scale));
-                    if (infox > points[0].points.length - 1) infox = points[0].points.length - 1;
-                    istouch = true;
-                    infoanim.start();
-                    lastx = event.getX();
-                    lasty = event.getY();
-                }
-                if (event.getAction() == MotionEvent.ACTION_MOVE) {
 
-                    if((Math.abs(lastx - event.getX()) > Math.abs(lasty - event.getY())) && !ismove) {
-                        ismove = true;
-                        v.getParent().requestDisallowInterceptTouchEvent(true);
-                    }
+                switch (event.getAction()){
+                    case MotionEvent.ACTION_DOWN:
+                        if(event.getX() > menux && event.getX() < menuw && event.getY() > menuy && event.getY() < menuh && chartmode == 0 && istouch){
+                            ischacge = false;
+                        } else{
+                            int dis = (int) (event.getX() - startx);
+                            infox = (int) (dis / (distance / scale));
+                            if (infox > points[0].points.length - 1)
+                                infox = points[0].points.length - 1;
+                            if (infox < 0) infox = 0;
+                            istouch = true;
+                            infoanim.start();
+                            lastx = event.getX();
+                            lasty = event.getY();
+                            ismove = false;
+                            ischacge = true;
+                            invalidate();
+                        }
+                        return true;
 
-                    if (ismove) {
-                        int dis = (int) (event.getX() - startx);
-                        infox = (int) (dis / (distance / scale));
-                        if (infox > points[0].points.length - 1)
-                            infox = points[0].points.length - 1;
-                        if (infox < 0) infox = 0;
-                        istouch = true;
-                    } else {
-                        istouch = false;
-                    }
-                    lasty = event.getY();
-                    lastx = event.getX();
-                    invalidate();
+                    case MotionEvent.ACTION_MOVE:
+
+                        if(ischacge) {
+                            if ((Math.abs(lastx - event.getX()) > Math.abs(lasty - event.getY())) && !ismove) {
+                                ismove = true;
+                                v.getParent().requestDisallowInterceptTouchEvent(true);
+                            }
+
+                            if (ismove) {
+                                int dis = (int) (event.getX() - startx);
+                                infox = (int) (dis / (distance / scale));
+                                if (infox > points[0].points.length - 1)
+                                    infox = points[0].points.length - 1;
+                                if (infox < 0) infox = 0;
+                                istouch = true;
+                            } else {
+                                istouch = false;
+                            }
+                            lasty = event.getY();
+                            lastx = event.getX();
+                            invalidate();
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP :
+                        if(ischacge) {
+                            int dis = (int) (event.getX() - startx);
+                            infox = (int) (dis / (distance / scale));
+                            if (infox > points[0].points.length - 1)
+                                infox = points[0].points.length - 1;
+                            if (infox < 0) infox = 0;
+                            v.getParent().requestDisallowInterceptTouchEvent(false);
+                            ismove = false;
+                            istouch = true;
+                        } else {
+                            if(event.getX() > menux && event.getX() < menuw && event.getY() > menuy && event.getY() < menuh) {
+                                chartmode = 1;
+                                //changemodeanim.start();
+                                parent.edge.setText(String.valueOf(df2.format(points[0].points[infox].x)));
+                                parent.title.setText("Zoom Out");
+                                parent.title.setTextSize(12);
+                                parent.title.setTextColor(MainActivity.zoomtext);
+                                istouch = false;
+                                parent.im.setVisibility(VISIBLE);
+                                parent.title.setOnClickListener(new OnClickListener() {
+                                    @Override
+                                    public void onClick(View v) {
+                                        chartmode = 0;
+                                        //changemodeanim.start();
+                                        parent.title.setText("Followers");
+                                        parent.title.setTextSize(16);
+                                        parent.im.setVisibility(GONE);
+                                        parent.title.setTextColor(MainActivity.textcolor);
+                                        try {
+                                            setData(new JSONObject(readText("chart_1/overview.json")));
+                                            parent.mg.setData(new JSONObject(readText("chart_1/overview.json")));
+                                            stepvalue = 1;
+                                            parent.edge.setText(String.valueOf(parent.df.format(points[0].points[getStartPoint()].x) + " - " + parent.df.format(points[0].points[getEndPoint() - 1].x)));
+                                            parent.mg.select = 1;
+                                            parent.mg.start = 0;
+                                            setStart(parent.mg.start);
+                                            setScale(parent.mg.select);
+                                            while ((stepdate * ((distance / scale) * (points[0].points.length) - midwidth)) / points[0].points.length < midwidth * 2)
+                                                stepdate *= 2;
+                                            checknums();
+                                            update();
+                                            parent.mg.update();
+                                            df = new SimpleDateFormat("MMM dd", Locale.US);
+                                        } catch (JSONException e) {
+                                            e.printStackTrace();
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
+                                        parent.title.setOnClickListener(null);
+                                    }
+                                });
+
+                                try {
+                                    String path = "chart_1/";
+                                    df = new SimpleDateFormat("yyyy-MM");
+                                    df.setTimeZone(TimeZone.getTimeZone("UTC"));
+                                    path += df.format(points[0].points[infox].x) + "/";
+                                    df = new SimpleDateFormat("d");
+                                    df.setTimeZone(TimeZone.getTimeZone("UTC"));
+                                    if(df.format(points[0].points[infox].x).length() == 1)  path += "0" + df.format(points[0].points[infox].x) + ".json";
+                                    else path += df.format(points[0].points[infox].x) + ".json";
+                                    df = new SimpleDateFormat("MMM dd", Locale.US);
+                                    df.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+                                    setData(new JSONObject(readText(path)));
+                                    parent.mg.setData(new JSONObject(readText(path)));
+                                    stepvalue = 1;
+
+                                    parent.mg.select = 1;
+                                    parent.mg.start = 0;
+                                    setStart(0f);
+                                    setScale(1f);
+                                    parent.edge.setText(String.valueOf(parent.df.format(points[0].points[getStartPoint()].x) + " - " + parent.df.format(points[0].points[getEndPoint() - 1].x)));
+
+                                    while ((stepdate * ((distance / scale) * (points[0].points.length) - midwidth)) / points[0].points.length < midwidth * 2)
+                                        stepdate *= 2;
+
+                                    checknums();
+                                    update();
+                                    parent.mg.update();
+
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                            }
+                        }
+                        return true;
                 }
-                if (event.getAction() == MotionEvent.ACTION_UP) {
-                    int dis = (int) (event.getX() - startx);
-                    infox = (int) (dis / (distance / scale));
-                    if (infox > points[0].points.length - 1) infox = points[0].points.length - 1;
-                    istouch = true;
-                    v.getParent().requestDisallowInterceptTouchEvent(false);
-                    ismove = false;
-                }
-                return true;
+                return false;
             }
         });
     }
 
-    protected void setTheme(int bgc, int lnc, int txtc) {
-        bgcolor = bgc;
-        linecolor = lnc;
-        textcolor = txtc;
-        this.setBackgroundColor(bgcolor);
+    private String readText(String name) throws IOException {
+        InputStream is = parent.parent.getAssets().open(name);
+        BufferedReader br = new BufferedReader(new InputStreamReader(is));
+        StringBuilder sb = new StringBuilder();
+        String s = null;
+        while ((s = br.readLine()) != null) {
+            sb.append(s);
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    protected void setTheme() {
+        this.setBackgroundColor(MainActivity.bgc);
     }
 
     @Override
@@ -266,19 +394,31 @@ public class Chart extends View {
     }
 
     public void update() {
-        float mx = getMax();
-        if (mx % (stepvalue) > 0) mx += (stepvalue - mx % (stepvalue));
-        newgraph_h = (int) (mx / ((int) (mx / stepvalue)));
-        newgraph_h *= (int) (mx / (stepvalue));
-        if (newgraph_h == 0) newgraph_h = step_num;
 
-        if (newgraph_h != graph_h) {
+        if( (getMin() < newgraph_b || getMin() > newgraph_b + stepvalue)) {
+            float mn = getMin();
+            //if (mn % (step_num) > 0) mn -= (mn % (step_num));
+            newgraph_b = mn;
+        }
+
+        if(getMax() > newgraph_h || getMax() < newgraph_h - stepvalue) {
+            float mx = getMax();
+            //if (mx % (stepvalue) > 0) mx += (((newgraph_h - newgraph_b) / step_num) - mx % (((newgraph_h - newgraph_b) / step_num)));
+            newgraph_h = mx;
+            if (newgraph_h == 0) newgraph_h = step_num;
+
+        }
+
+        if ((newgraph_h) != graph_h  || (newgraph_b) != graph_b ) {
             oldsstepvalue = stepvalue;
-            stepvalue = (int) (newgraph_h / step_num);
-            stepalpha = 0;
+            stepvalue = (int) ((newgraph_h - newgraph_b) / step_num);
+            ///stepalpha = 0;
+                resizeanim.setFloatValues(graph_h, newgraph_h - newgraph_b);
+                resizeanim.start();
 
-            resizeanim.setFloatValues(graph_h, newgraph_h);
-            resizeanim.start();
+                resizeanim2.setFloatValues(graph_b, newgraph_b);
+                resizeanim2.start();
+
             gridanim.start();
         }
     }
@@ -302,13 +442,14 @@ public class Chart extends View {
         ));
         p.setStyle(Paint.Style.STROKE);
         p.setAntiAlias(true);
-        p.setColor(linecolor);
-        text.setColor(textcolor);
+        p.setColor(MainActivity.gridcolor);
+        text.setColor(MainActivity.gridcolor);
+        text.setStyle(Paint.Style.FILL_AND_STROKE);
 
         bg.setStyle(Paint.Style.FILL);
-        bg.setColor(bgcolor);
+        bg.setColor(MainActivity.bgc);
 
-        bg.setAlpha(200 - (int)(stepalpha * (200f / 255f)));
+
         boolean isshow = false;
 
         for (int i = 0; i < step_num; i++) {
@@ -319,40 +460,43 @@ public class Chart extends View {
                 }
             }
             if (isshow) {
-                p.setAlpha(255);
-                text.setAlpha(255);
+                p.setAlpha(0);
+                text.setAlpha(0);
+                bg.setAlpha(200);
                 isshow = false;
             } else {
                 p.setAlpha(255 - stepalpha);
-                text.setAlpha(255 - stepalpha);
+                text.setAlpha(255/2 - stepalpha/2);
+                bg.setAlpha(200 - (int)(stepalpha * (200f / 255f)));
             }
-            Rect r = new Rect(0,0,0,0);
-            text.getTextBounds(convertnum(stepvalue * i),0,convertnum(stepvalue * i).length(),r);
-            canvas.drawRoundRect(new RectF(left - (left / 2),top + (height / graph_h) * reverse(oldsstepvalue * i) - 10 + (left / 2), left + r.width() + (left / 2),top + (height / graph_h) * reverse(oldsstepvalue * i) - 10 - r.height() - (left / 2)),10,10,bg);
-            canvas.drawText(convertnum(oldsstepvalue * i), left, top + (height / graph_h) * reverse(oldsstepvalue * i) - 10, text);
+//            Rect r = new Rect(0,0,0,0);
+//            text.getTextBounds(convertnum(stepvalue * i + (int)(newgraph_b)),0,convertnum(stepvalue * i + (int)(newgraph_b)).length(),r);
+//            canvas.drawRoundRect(new RectF(left - (left / 2),top + (height / (graph_h) * reverse(oldsstepvalue * i + newgraph_b) - 10 + (left / 2)), left + r.width() + (left / 2),top + (height / (graph_h) * reverse(oldsstepvalue * i + newgraph_b) - (left / 2)) - r.height()
+//            ),10,10,bg);
+            canvas.drawText(convertnum(oldsstepvalue * i + (int)(newgraph_b)), left, top + (height / graph_h) * reverse(oldsstepvalue * i + newgraph_b) - 10, text);
         }
 
         p.setAlpha(stepalpha);
-        text.setAlpha(stepalpha);
+        text.setAlpha(stepalpha/2);
         bg.setAlpha((int)(stepalpha * (200f / 255f)));
         for (int i = 0; i < step_num; i++) {
-            Rect r = new Rect(0,0,0,0);
-            text.getTextBounds(convertnum(stepvalue * i),0,convertnum(stepvalue * i).length(),r);
-            canvas.drawRoundRect(new RectF(left - (left / 2),top + (height / graph_h) * reverse(stepvalue * i) - 10 + (left / 2), left + r.width() + (left / 2),top + (height / graph_h) * reverse(stepvalue * i) - 10 - r.height() - (left / 2)),10,10,bg);
-            canvas.drawText(convertnum(stepvalue * i), left, top + (height / graph_h) * reverse(stepvalue * i) - 10, text);
+//            Rect r = new Rect(0,0,0,0);
+//            text.getTextBounds(convertnum(stepvalue * i + (int)(newgraph_b)),0,convertnum(stepvalue * i + (int)(newgraph_b)).length(),r);
+//            canvas.drawRoundRect(new RectF(left - (left / 2),top + (height / (graph_h) * reverse(stepvalue * i + newgraph_b) - 10 + (left / 2)), left + r.width() + (left / 2),top + (height / (graph_h) * reverse(stepvalue * i + newgraph_b) - (left / 2)) - r.height()),10,10,bg);
+            canvas.drawText(convertnum(stepvalue * i + (int)(newgraph_b)), left, top + (height / (graph_h)) * reverse(stepvalue * i + newgraph_b) - 10, text);
         }
     }
 
     private void drawgrid(Canvas canvas) {
         p.setStrokeWidth((int) TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
-                1f,
+                1.5f,
                 getResources().getDisplayMetrics()
         ));
         p.setStyle(Paint.Style.STROKE);
         p.setAntiAlias(true);
-        p.setColor(linecolor);
-        text.setColor(textcolor);
+        p.setColor(MainActivity.gridcolor);
+        text.setColor(MainActivity.textcolor);
 
         boolean isshow = false;
         if ((255 - stepalpha) > 0) {
@@ -364,79 +508,90 @@ public class Chart extends View {
                     }
                 }
                 if (isshow) {
-                    p.setAlpha(255);
-                    text.setAlpha(255);
+                    p.setAlpha(255/10);
                     isshow = false;
                 } else {
-                    p.setAlpha(255 - stepalpha);
-                    text.setAlpha(255 - stepalpha);
+                    p.setAlpha(255/10 - stepalpha / 10);
                 }
 
                 dots[i * 4] = left;
-                dots[i * 4 + 1] = top + (height / graph_h) * reverse(oldsstepvalue * i);
+                dots[i * 4 + 1] = top + (height / (graph_h)) * reverse(oldsstepvalue * i + graph_b);
                 dots[i * 4 + 2] = left + width;
-                dots[i * 4 + 3] = top + (height / graph_h) * reverse(oldsstepvalue * i);
+                dots[i * 4 + 3] = top + (height / (graph_h)) * reverse(oldsstepvalue * i + graph_b);
             }
             canvas.drawLines(dots, p);
         }
 
-        p.setAlpha(stepalpha);
-        text.setAlpha(stepalpha);
+        p.setAlpha(stepalpha / 10);
         for (int i = 0; i < step_num; i++) {
             dots[i * 4] = left;
-            dots[i * 4 + 1] = top + (height / graph_h) * reverse(stepvalue * i);
+            dots[i * 4 + 1] = top + (height / (graph_h)) * (reverse(stepvalue * i + graph_b));
             dots[i * 4 + 2] = left + width;
-            dots[i * 4 + 3] = top + (height / graph_h) * reverse(stepvalue * i);
-            canvas.drawText(convertnum(stepvalue * i), left, top + (height / graph_h) * reverse(stepvalue * i) - 10, text);
+            dots[i * 4 + 3] = top + (height / (graph_h)) * (reverse(stepvalue * i + graph_b));
+            //canvas.drawText(convertnum(stepvalue * i + (int)newgraph_b), left, top + (height / (graph_h + newgraph_b)) * (reverse(stepvalue * i) - 10), text);
         }
         canvas.drawLines(dots, p);
 
-        for (int i = 0; i < points[0].points.length; i++) {
-            d = new Date(points[0].points[i].x);
-            text.setAlpha((int) (alps[i] * 255f));
-            if (text.getAlpha() != 0) {
-                canvas.drawText(df.format(d), left + startx +
-                                ((i * ((distance / scale) * (points[0].points.length) - midwidth)) / points[0].points.length)
-                        , bottom + top + top, text);
-            }
+        if(chartmode == 0) {
+            for (int i = 0; i < points[0].points.length; i++) {
+                d = new Date(points[0].points[i].x);
+                text.setAlpha((int) (alps[i] * 255f/2));
+                if (text.getAlpha() != 0) {
+                    canvas.drawText(df.format(d), (float)(left + startx +
+                                    ((i * ((distance / scale) * (points[0].points.length) - midwidth)) / points[0].points.length))
+                            , bottom + top + top, text);
+                }
 
+            }
+        } else {
+            for (int i = 0; i < points[0].points.length; i++) {
+                d = new Date(points[0].points[i].x);
+                text.setAlpha((int) (alps[i] * 255f/2));
+                if (text.getAlpha() != 0) {
+                    canvas.drawText(df3.format(d), (float)(left + startx +
+                                    ((i * ((distance / scale) * (points[0].points.length) - midwidth)) / points[0].points.length))
+                            , bottom + top + top, text);
+                }
+
+            }
         }
     }
 
     private float reverse(float x) {
-        return graph_h - x;
+        return (graph_h - (x - graph_b));
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        canvas.drawColor(bgcolor);
-        if (drawgrid) drawgrid(canvas);
+        canvas.drawColor(MainActivity.bgc);
 
         drawinfoline(canvas);
         for (int n = 0; n < points.length; n++) {
             if (points[n].pnt.getAlpha() != 0) {
                 for (int i = 0; i < points[n].points.length - 1; i++) {
                     pointdots[i * 2] = left + startx + ((distance / scale) * i);
-                    pointdots[i * 2 + 1] = top + (height / graph_h) * reverse(points[n].points[i].y);
+                    pointdots[i * 2 + 1] = top + (height / (graph_h)) * reverse(points[n].points[i].y);
                     linedots[i * 4] = left + startx + ((distance / scale) * i);
-                    linedots[i * 4 + 1] = top + (height / graph_h) * reverse(points[n].points[i].y);
+                    linedots[i * 4 + 1] = top + (height / (graph_h)) * reverse(points[n].points[i].y);
                     linedots[i * 4 + 2] = left + startx + ((distance / scale) * (i + 1));
-                    linedots[i * 4 + 3] = top + (height / graph_h) * reverse(points[n].points[i + 1].y);
+                    linedots[i * 4 + 3] = top + (height / (graph_h)) * reverse(points[n].points[i + 1].y);
                 }
                 canvas.drawLines(linedots, getStartPoint() * 4, (getEndPoint() - getStartPoint() - 1) * 4, points[n].pnt);
                 canvas.drawPoints(pointdots, getStartPoint() * 2, (getEndPoint() - getStartPoint() - 1) * 2, points[n].pnt2);
             }
         }
 
+        if (drawgrid) drawgrid(canvas);
         if(drawgrid) drawtextgrid(canvas);
         drawinfo(canvas);
     }
 
     private void drawinfoline(Canvas canvas) {
         if (istouch) {
-            infopaint.setStrokeWidth((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2f, getResources().getDisplayMetrics()));
+            infopaint.setStrokeWidth((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, getResources().getDisplayMetrics()));
             infopaint.setStyle(Paint.Style.STROKE);
-            infopaint.setColor(linecolor);
+            infopaint.setColor(MainActivity.gridtextcolor);
+            infopaint.setAlpha(255/10);
             infopaint.setAntiAlias(true);
             canvas.drawLine(left + startx + ((distance / scale) * infox), bottom, left + startx + ((distance / scale) * infox), bottom - ((height + top) * linesz), infopaint);
         }
@@ -450,7 +605,7 @@ public class Chart extends View {
             if (infox > points[0].points.length - 1) infox = points[0].points.length - 1;
 
             for (int i = 0; i < points.length; i++) {
-                infopaint.setColor(bgcolor);
+                infopaint.setColor(MainActivity.bgc);
                 infopaint.setAlpha(points[i].pnt.getAlpha());
                 infopaint.setStyle(Paint.Style.FILL);
                 canvas.drawCircle(left + startx + ((distance / scale) * infox), top + (height / graph_h) * reverse(points[i].points[infox].y), inforad, infopaint);
@@ -465,22 +620,25 @@ public class Chart extends View {
     private void drawpopupmenu(float x, float y, int step, Canvas canvas) {
         d = new Date(points[0].points[step].x);
 
-        popuppnt.setColor(linecolor);
+        popuppnt.setColor(MainActivity.bgc2);
         popuppnt.setAlpha((int) (linesz * 255));
         popuppnt.setStyle(Paint.Style.FILL_AND_STROKE);
         Rect b = new Rect(0, 0, 0, 0);
+        Rect h = new Rect(0, 0, 0, 0);
+        popuppnt.getTextBounds("Gg",0,2,h);
         int max = 0, a = 0;
         for (int i = 0; i < points.length; i++) {
-            if (points[i].points[step].y > max) max = points[i].points[step].y;
-            if (points[i].isshow) a++;
+            if (coolnum( points[i].points[step].y).length() + points[i].name.length() > coolnum( points[max].points[step].y).length() + points[max].name.length() ) max = i;
+            if (isshow[i]) a++;
         }
 
-        if (coolnum(max).length() > 11)
-            popuppnt.getTextBounds(coolnum(max), 0, coolnum(max).length(), b);
-        else
+        if (coolnum( points[max].points[step].y).length() + points[max].name.length() >= 11) {
+            popuppnt.getTextBounds(coolnum(points[max].points[step].y) + points[max].name + "BBB", 0, coolnum(points[max].points[step].y).length() + points[max].name.length() + 3, b);
+        } else {
             popuppnt.getTextBounds("WWW 00 0000", 0, 11, b);
+        }
 
-        RectF r = new RectF(x, y, x + b.width() + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()), y + b.height() * 2 * a + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 30f, getResources().getDisplayMetrics()));
+        RectF r = new RectF(x, y, x + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 120f, getResources().getDisplayMetrics()), y + h.height() * (a) * 2 + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 30f, getResources().getDisplayMetrics()));
         float inc;
 
         if (x + r.width() > width + left) {
@@ -489,21 +647,39 @@ public class Chart extends View {
 
         r.left -= inc;
         r.right -= inc;
+        menux = r.left;
+        menuy = r.top;
+        menuh = r.bottom;
+        menuw = r.right;
         canvas.drawRoundRect(r, (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 5f, getResources().getDisplayMetrics()), (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 5f, getResources().getDisplayMetrics()), popuppnt);
 
-        popuppnt.setColor(textcolor);
+        popuppnt.setColor(MainActivity.textcolor);
         popuppnt.setAlpha((int) (linesz * 255));
 
-        canvas.drawText(df2.format(d), x + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()) - inc, y + b.height() + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()), popuppnt);
+        if(chartmode == 0)
+            canvas.drawText(df.format(d), x + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()) - inc, y + h.height() + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()), popuppnt);
+        else         canvas.drawText(df4.format(d), x + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()) - inc, y + h.height() + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()), popuppnt);
+
         int ii = 0;
         for (int i = 0; i < points.length; i++) {
-            if (points[i].isshow) {
+            if (isshow[i]) {
                 popuppnt.setColor(points[i].pnt.getColor());
                 popuppnt.setAlpha((int) (linesz * 255));
-                canvas.drawText(coolnum((points[i].points[step].y)), x + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()) - inc, y + (b.height() * (ii + 1) * 2) + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20f, getResources().getDisplayMetrics()), popuppnt);
+                popuppnt.getTextBounds(coolnum((points[i].points[step].y)), 0, coolnum((points[i].points[step].y)).length(), b);
+                canvas.drawText(coolnum((points[i].points[step].y)), x - (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()) - inc + r.width() - b.width() , y + h.height() + (h.height() * (ii + 1) * 2 ) + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()), popuppnt);
+                popuppnt.setColor(MainActivity.textcolor);
+                popuppnt.setAlpha((int) (linesz * 255));
+                canvas.drawText(points[i].name, x + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()) - inc , y + h.height() + (h.height() * (ii + 1) * 2) + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()), popuppnt);
                 ii++;
             }
         }
+
+        if(chartmode == 0) {
+            Drawable d = getResources().getDrawable(R.drawable.infoicon);
+            d.setBounds((int) (x - (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()) - inc + r.width()) - h.height() * 2, (int)(y + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics())) - h.height(), (int)(x - (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()) - inc + r.width() + h.height() * 2 - (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics())),(int)(y + h.height() * 2) + (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics()));
+            d.draw(canvas);
+        }
+
     }
 
     public String convertnum(int i) {
@@ -534,13 +710,13 @@ public class Chart extends View {
         return s;
     }
 
-    private int getStartPoint() {
+    public int getStartPoint() {
         if ((-((startx + left) / (distance / scale))) < 0) return 0;
         else
             return (int) ((-((startx + left) / (distance / scale))));
     }
 
-    private int getEndPoint() {
+    public int getEndPoint() {
         if ((-((startx - width - left - left - left) / (distance / scale))) + 1 > points[0].points.length)
             return points[0].points.length;
         else return (int) (-((startx - width - left - left - left) / (distance / scale))) + 1;
@@ -558,10 +734,21 @@ public class Chart extends View {
         float max = 0;
         for (int n = 0; n < points.length; n++) {
             for (int i = getStartPoint(); i < getEndPoint(); i++) {
-                if (points[n].isshow && points[n].points[i].y > max) max = points[n].points[i].y;
+                if (isshow[n] && points[n].points[i].y > max) max = points[n].points[i].y;
             }
         }
         return max;
+    }
+
+    protected float getMin() {
+        float min = Integer.MAX_VALUE;
+        for (int n = 0; n < points.length; n++) {
+            for (int i = getStartPoint(); i < getEndPoint(); i++) {
+                if (isshow[n] && points[n].points[i].y < min) min = points[n].points[i].y;
+            }
+        }
+        if(min == Integer.MAX_VALUE) return 0;
+        return min;
     }
 
     public LineInfo getLine(int index) {
@@ -586,7 +773,8 @@ public class Chart extends View {
             for (int i = 0; i < json.getJSONArray("columns").getJSONArray(n).length() - 1; i++) {
                 pi[i] = new PointInfo(json.getJSONArray("columns").getJSONArray(0).getLong(i + 1), json.getJSONArray("columns").getJSONArray(n).getInt(i + 1));
             }
-            points[n - 1] = new LineInfo(pi, Color.parseColor(json.getJSONObject("colors").getString(json.getJSONArray("columns").getJSONArray(n).getString(0))));
+            points[n - 1] = new LineInfo(pi, Color.parseColor(json.getJSONObject("colors").getString(json.getJSONArray("columns").getJSONArray(n).getString(0))),n - 1);
+            points[n - 1].name = json.getJSONObject("names").getString("y" + (n - 1) );
         }
 
         alps = new float[points[0].points.length];
@@ -598,17 +786,33 @@ public class Chart extends View {
 
         Rect r = new Rect(0, 0, 0, 0);
 
-        for (int i = 0; i < points[0].points.length; i++) {
-            text.getTextBounds(df.format(new Date(points[0].points[i].x)), 0, df.format(new Date(points[0].points[i].x)).length(), r);
-            midwidth += r.width();
+        if(chartmode == 0) {
+            for (int i = 0; i < points[0].points.length; i++) {
+                text.getTextBounds(df.format(new Date(points[0].points[i].x)), 0, df.format(new Date(points[0].points[i].x)).length(), r);
+                midwidth += r.width();
+            }
+            midwidth = midwidth / points[0].points.length + 20;
+        } else if(chartmode == 1) {
+            for (int i = 0; i < points[0].points.length; i++) {
+                text.getTextBounds(df3.format(new Date(points[0].points[i].x)), 0, df3.format(new Date(points[0].points[i].x)).length(), r);
+                midwidth += r.width();
+            }
+            midwidth = midwidth / points[0].points.length + 20;
         }
-        midwidth = midwidth / points[0].points.length + 20;
 
-        update();
+        distance = width / (float) (points[0].points.length - 1);
+
+        if (isshow != null) {
+            for(int n = 0; n < points.length; n++){
+                if(isshow[n])points[n].pnt.setAlpha(255);
+                else points[n].pnt.setAlpha(0);
+            }
+        }
+
     }
 
     public void setLineVisible(int index, boolean visible) {
-        points[index].isshow = visible;
+        isshow[index] = visible;
         points[index].startanim();
     }
 

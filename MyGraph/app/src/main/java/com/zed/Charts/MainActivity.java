@@ -9,39 +9,55 @@ import android.os.Bundle;
 import android.util.TypedValue;
 import android.widget.ImageButton;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toolbar;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
+import com.zed.BarChart.BarChartView;
+import com.zed.DualChart.DualChart;
+import com.zed.DualChart.DualChartView;
+import com.zed.MultiBarChart.MultiBarChart;
+import com.zed.MultiBarChart.MultiBarChartView;
+import com.zed.PersentChart.PersentChartView;
+
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 public class MainActivity extends Activity {
 
     RelativeLayout cl;
-    ChartView[] graphs;
+    ChartView chart1;
+    DualChartView chart2;
+    MultiBarChartView chart3;
+    BarChartView chart4;
+    PersentChartView chart5;
+
     Toolbar tb;
+    TextView title;
     ImageButton btn;
     int theme = 0;
-    int bgc, lnc, txtc, btntxtc;
-
+    public static int bgc, textcolor, gridcolor,bgc2,gridtextcolor,barback,barselect,zoomtext;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
 
         cl = findViewById(R.id.cl);
 
         tb = findViewById(R.id.toolbar);
         tb.setElevation(8);
 
+        title = findViewById(R.id.title);
         btn = findViewById(R.id.btn);
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -58,12 +74,29 @@ public class MainActivity extends Activity {
                 getResources().getDisplayMetrics()
         ));
 
-        graphs = new ChartView[5];
-        for (int i = 0; i < 5; i++) {
             try {
-                graphs[i] = new ChartView(this);
-                graphs[i].setLayoutParams(lp);
-                graphs[i].setData(new JSONArray(readText(this, R.raw.chart_data)).getJSONObject(i));
+                chart1 = new ChartView(this,this);
+                chart1.setLayoutParams(lp);
+                chart1.setData(new JSONObject(readText("chart_1/overview.json")));
+                chart1.title.setText("Followers");
+
+                chart2 = new DualChartView(this,this);
+                chart2.setLayoutParams(lp);
+                chart2.setData(new JSONObject(readText("chart_2/overview.json")));
+                chart2.title.setText("Interactions");
+
+                chart3 = new MultiBarChartView(this,this);
+                chart3.setLayoutParams(lp);
+                chart3.setData(new JSONObject(readText("chart_3/overview.json")));
+                chart3.title.setText("Messages");
+
+                chart4 = new BarChartView(this,this);
+                chart4.setLayoutParams(lp);
+                chart4.setData(new JSONObject(readText("chart_4/overview.json")));
+
+                chart5 = new PersentChartView(this,this);
+                chart5.setLayoutParams(lp);
+                chart5.setData(new JSONObject(readText("chart_5/overview.json")));
             } catch (JSONException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -71,8 +104,11 @@ public class MainActivity extends Activity {
             }
             LinearLayout ll = findViewById(R.id.ll);
 
-            ll.addView(graphs[i]);
-        }
+        ll.addView(chart1);
+        ll.addView(chart2);
+        ll.addView(chart3);
+        ll.addView(chart4);
+        ll.addView(chart5);
         setThemeT(0);
     }
 
@@ -88,124 +124,54 @@ public class MainActivity extends Activity {
         return sb.toString();
     }
 
-    public void setThemeT(int i) {
-        if (i == 0) {
-            ValueAnimator a = null;
-            a = ValueAnimator.ofArgb(Color.parseColor("#1d2733"), Color.parseColor("#ffffff")).setDuration(250);
-            a.setFrameDelay(10);
-            a.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    bgc = (int) animation.getAnimatedValue();
-                    for (int i = 0; i < graphs.length; i++) {
-                        graphs[i].setTheme(bgc, lnc, txtc, btntxtc, i);
-                    }
-                }
-            });
-            ValueAnimator b = ValueAnimator.ofArgb(Color.parseColor("#111924"), Color.parseColor("#ededed")).setDuration(250);
-            b.setFrameDelay(10);
-            b.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    lnc = (int) animation.getAnimatedValue();
-                    for (int i = 0; i < graphs.length; i++) {
-                        graphs[i].setTheme(bgc, lnc, txtc, btntxtc, i);
-                    }
-                    cl.setBackgroundColor(lnc);
-                }
-            });
-            ValueAnimator c = ValueAnimator.ofArgb(Color.parseColor("#506372"), Color.parseColor("#96a2aa")).setDuration(250);
-            c.setFrameDelay(10);
-            c.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    txtc = (int) animation.getAnimatedValue();
-                    for (int i = 0; i < graphs.length; i++) {
-                        graphs[i].setTheme(bgc, lnc, txtc, btntxtc, i);
-                    }
-                }
-            });
-            ValueAnimator d = ValueAnimator.ofArgb(Color.parseColor("#ffffff"), Color.parseColor("#000000")).setDuration(250);
-            d.setFrameDelay(10);
-            d.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    btntxtc = (int) animation.getAnimatedValue();
-                    for (int i = 0; i < graphs.length; i++) {
-                        graphs[i].setTheme(bgc, lnc, txtc, btntxtc, i);
-                    }
-                }
-            });
-            ValueAnimator e = ValueAnimator.ofArgb(Color.parseColor("#1d2733"), Color.parseColor("#517da2")).setDuration(250);
-            e.setFrameDelay(10);
-            e.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    tb.setBackgroundColor((int) animation.getAnimatedValue());
-                }
-            });
-            a.start();
-            b.start();
-            c.start();
-            d.start();
-            e.start();
-        } else {
-            ValueAnimator a = null;
-            a = ValueAnimator.ofArgb(Color.parseColor("#ffffff"), Color.parseColor("#1d2733")).setDuration(250);
-            a.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    bgc = (int) animation.getAnimatedValue();
-                    for (int i = 0; i < graphs.length; i++) {
-                        graphs[i].setTheme(bgc, lnc, txtc, btntxtc, i);
-                    }
-                }
-            });
-            ValueAnimator b = ValueAnimator.ofArgb(Color.parseColor("#ededed"), Color.parseColor("#111924")).setDuration(250);
-            b.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    lnc = (int) animation.getAnimatedValue();
-                    for (int i = 0; i < graphs.length; i++) {
-                        graphs[i].setTheme(bgc, lnc, txtc, btntxtc, i);
-                    }
-                    cl.setBackgroundColor(lnc);
-                }
-            });
-            ValueAnimator c = ValueAnimator.ofArgb(Color.parseColor("#96a2aa"), Color.parseColor("#506372")).setDuration(250);
-            c.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    txtc = (int) animation.getAnimatedValue();
-                    for (int i = 0; i < graphs.length; i++) {
-                        graphs[i].setTheme(bgc, lnc, txtc, btntxtc, i);
-                    }
-                }
-            });
-
-            ValueAnimator d = ValueAnimator.ofArgb(Color.parseColor("#000000"), Color.parseColor("#ffffff")).setDuration(250);
-            d.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    btntxtc = (int) animation.getAnimatedValue();
-                    for (int i = 0; i < graphs.length; i++) {
-                        graphs[i].setTheme(bgc, lnc, txtc, btntxtc, i);
-                    }
-                }
-            });
-            ValueAnimator e = ValueAnimator.ofArgb(Color.parseColor("#517da2"), Color.parseColor("#1d2733")).setDuration(250);
-            e.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    tb.setBackgroundColor((int) animation.getAnimatedValue());
-                }
-            });
-            a.start();
-            b.start();
-            c.start();
-            d.start();
-            e.start();
+    public String readText(String name) throws IOException {
+        InputStream is =  getAssets().open(name);
+        BufferedReader br = new BufferedReader(new InputStreamReader(is));
+        StringBuilder sb = new StringBuilder();
+        String s = null;
+        while ((s = br.readLine()) != null) {
+            sb.append(s);
+            sb.append("\n");
         }
+        return sb.toString();
+    }
+
+    public void setThemeT(final int i) {
+        if (i == 0) {
+            bgc = Color.parseColor("#ffffff");
+            gridcolor = Color.parseColor("#182D3B");
+            textcolor =  Color.parseColor("#000000");
+            bgc2 = Color.parseColor("#f0f0f0");
+            gridtextcolor = Color.parseColor("#252529");
+            tb.setBackgroundColor(bgc);
+            cl.setBackgroundColor(bgc2);
+            btn.setImageDrawable(getResources().getDrawable(R.drawable.moon));
+            title.setTextColor(textcolor);
+            barback = Color.parseColor("#E2EEF9");
+            zoomtext = Color.parseColor("#108BE3");
+            barselect = Color.parseColor("#86A9C4");
+
+        } else {
+            bgc = Color.parseColor("#242f3e");
+            gridcolor = Color.parseColor("#FFFFFF");
+            textcolor =  Color.parseColor("#ffffff");
+            bgc2 = Color.parseColor("#1b2433");
+            gridtextcolor = Color.parseColor("#A3B1C2");
+            tb.setBackgroundColor(bgc);
+            cl.setBackgroundColor(bgc2);
+            btn.setImageDrawable(getResources().getDrawable(R.drawable.moon2));
+            title.setTextColor(textcolor);
+            barback = Color.parseColor("#304259");
+            zoomtext = Color.parseColor("#48AAF0");
+            barselect = Color.parseColor("#6F899E");
+        }
+
+
+        chart1.setTheme();
+        chart2.setTheme();
+        chart3.setTheme();
+        chart4.setTheme();
+        chart5.setTheme();
         theme = i;
     }
 }
